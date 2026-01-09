@@ -26,6 +26,7 @@ export const list = style({
 });
 
 export const actionCard = style({
+	color: vars.color.foreground,
 	padding: vars.spacing[4],
 	borderRadius: vars.radius.md,
 	background: vars.color.surfaceHover, // or solid somewhat

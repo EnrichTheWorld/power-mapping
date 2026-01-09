@@ -3,12 +3,14 @@ import { usePowerMapStore } from '@/lib/store';
 import * as styles from './styles.css';
 import { clsx } from 'clsx';
 import { Play, RotateCcw, Check } from 'lucide-react';
+import { AddTargetDialog } from '../AddTargetDialog';
 
 export const ActionPanel = () => {
 	const { actions, simulation, startSimulation, commitSimulation, cancelSimulation } = usePowerMapStore();
 
 	return (
 		<div className={styles.panel}>
+			<AddTargetDialog />
 			<h2 className={styles.title}>Strategies</h2>
 
 			<div className={styles.list}>
