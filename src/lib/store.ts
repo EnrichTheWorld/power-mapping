@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { Target, ActionStrategy, SimulationState, Position, TargetGroup } from './types';
 
 interface PowerMapState {
@@ -16,7 +17,11 @@ interface PowerMapState {
 	commitSimulation: () => void;
 
 	// Helpers
-	getProjectedPosition: (target: Target, action: ActionStrategy) => Position;
+	// Helpers
+	getProjectedPosition: (target: Target, action: ActionStrategy, intensity: number) => Position;
+	resetToDefaults: () => void;
+	setSimulationIntensity: (intensity: number) => void;
+	toggleAffectedGroup: (group: TargetGroup) => void;
 }
 
 const INITIAL_TARGETS: Target[] = [
@@ -77,92 +82,147 @@ const AVAILABLE_ACTIONS: ActionStrategy[] = [
 	},
 ];
 
-export const usePowerMapStore = create<PowerMapState>((set, get) => ({
-	targets: INITIAL_TARGETS,
-	actions: AVAILABLE_ACTIONS,
-	simulation: {
-		isActive: false,
-		selectedActionId: null,
-		projectedPositions: {},
-	},
-
-	addTarget: (target) => set((state) => ({ targets: [...state.targets, target] })),
-
-	updateTarget: (id, updates) =>
-		set((state) => ({
-			targets: state.targets.map((t) => (t.id === id ? { ...t, ...updates } : t)),
-		})),
-
-	removeTarget: (id) =>
-		set((state) => ({
-			targets: state.targets.filter((t) => t.id !== id),
-		})),
-
-	getProjectedPosition: (target, action) => {
-		const sensitivityValue = target.sensitivity?.[action.sensitivityFactor] || 1; // Default multiplier 1
-
-		// Calculate raw deltas
-		let dSupport = (action.baseEffect.supportDelta || 0) * sensitivityValue;
-		let dPower = (action.baseEffect.powerDelta || 0) * sensitivityValue;
-
-		// Apply changes
-		let newSupport = target.position.support + dSupport;
-		let newPower = target.position.power + dPower;
-
-		// Clamp to -100 ~ 100
-		newSupport = Math.max(-100, Math.min(100, newSupport));
-		newPower = Math.max(-100, Math.min(100, newPower));
-
-		return { support: newSupport, power: newPower };
-	},
-
-	startSimulation: (actionId) => {
-		const { actions, targets, getProjectedPosition } = get();
-		const action = actions.find((a) => a.id === actionId);
-		if (!action) return;
-
-		const projectedPositions: Record<string, Position> = {};
-		targets.forEach((t) => {
-			projectedPositions[t.id] = getProjectedPosition(t, action);
-		});
-
-		set({
-			simulation: {
-				isActive: true,
-				selectedActionId: actionId,
-				projectedPositions,
-			},
-		});
-	},
-
-	cancelSimulation: () =>
-		set({
+export const usePowerMapStore = create<PowerMapState>()(
+	persist(
+		(set, get) => ({
+			targets: INITIAL_TARGETS,
+			actions: AVAILABLE_ACTIONS,
 			simulation: {
 				isActive: false,
 				selectedActionId: null,
 				projectedPositions: {},
+				intensity: 1,
+				affectedGroups: ['Government', 'Business', 'Media', 'Academia', 'NGO'],
+			},
+
+			resetToDefaults: () =>
+				set({
+					targets: INITIAL_TARGETS,
+					simulation: {
+						isActive: false,
+						selectedActionId: null,
+						projectedPositions: {},
+						intensity: 1,
+						affectedGroups: ['Government', 'Business', 'Media', 'Academia', 'NGO'],
+					},
+				}),
+
+			addTarget: (target) => set((state) => ({ targets: [...state.targets, target] })),
+
+			updateTarget: (id, updates) =>
+				set((state) => ({
+					targets: state.targets.map((t) => (t.id === id ? { ...t, ...updates } : t)),
+				})),
+
+			removeTarget: (id) =>
+				set((state) => ({
+					targets: state.targets.filter((t) => t.id !== id),
+				})),
+
+			getProjectedPosition: (target, action, intensity) => {
+				const sensitivityValue = target.sensitivity?.[action.sensitivityFactor] || 1; // Default multiplier 1
+
+				// Calculate raw deltas
+				let dSupport = (action.baseEffect.supportDelta || 0) * sensitivityValue * intensity;
+				let dPower = (action.baseEffect.powerDelta || 0) * sensitivityValue * intensity;
+
+				// Apply changes
+				let newSupport = target.position.support + dSupport;
+				let newPower = target.position.power + dPower;
+
+				// Clamp to -100 ~ 100
+				newSupport = Math.max(-100, Math.min(100, newSupport));
+				newPower = Math.max(-100, Math.min(100, newPower));
+
+				return { support: newSupport, power: newPower };
+			},
+
+			startSimulation: (actionId) => {
+				const { actions, targets, getProjectedPosition, simulation } = get();
+				const action = actions.find((a) => a.id === actionId);
+				if (!action) return;
+
+				const projectedPositions: Record<string, Position> = {};
+				targets.forEach((t) => {
+					if (simulation.affectedGroups.includes(t.group)) {
+						projectedPositions[t.id] = getProjectedPosition(t, action, simulation.intensity);
+					} else {
+						projectedPositions[t.id] = t.position;
+					}
+				});
+
+				set({
+					simulation: {
+						...simulation,
+						isActive: true,
+						selectedActionId: actionId,
+						projectedPositions,
+					},
+				});
+			},
+
+			setSimulationIntensity: (intensity) => {
+				set((state) => ({
+					simulation: { ...state.simulation, intensity },
+				}));
+				// Re-calculate if active
+				const { simulation, actions, startSimulation } = get();
+				if (simulation.isActive && simulation.selectedActionId) {
+					startSimulation(simulation.selectedActionId);
+				}
+			},
+
+			toggleAffectedGroup: (group) => {
+				set((state) => {
+					const groups = state.simulation.affectedGroups;
+					const newGroups = groups.includes(group) ? groups.filter((g) => g !== group) : [...groups, group];
+					return { simulation: { ...state.simulation, affectedGroups: newGroups } };
+				});
+				// Re-calculate if active
+				const { simulation, startSimulation } = get();
+				if (simulation.isActive && simulation.selectedActionId) {
+					startSimulation(simulation.selectedActionId);
+				}
+			},
+
+			cancelSimulation: () =>
+				set({
+					simulation: {
+						isActive: false,
+						selectedActionId: null,
+						projectedPositions: {},
+						intensity: 1,
+						affectedGroups: ['Government', 'Business', 'Media', 'Academia', 'NGO'],
+					},
+				}),
+
+			commitSimulation: () => {
+				const { simulation, targets } = get();
+				if (!simulation.isActive) return;
+
+				const newTargets = targets.map((t) => {
+					const projected = simulation.projectedPositions[t.id];
+					if (projected) {
+						return { ...t, position: projected };
+					}
+					return t;
+				});
+
+				set({
+					targets: newTargets,
+					simulation: {
+						isActive: false,
+						selectedActionId: null,
+						projectedPositions: {},
+						intensity: 1,
+						affectedGroups: ['Government', 'Business', 'Media', 'Academia', 'NGO'],
+					},
+				});
 			},
 		}),
-
-	commitSimulation: () => {
-		const { simulation, targets } = get();
-		if (!simulation.isActive) return;
-
-		const newTargets = targets.map((t) => {
-			const projected = simulation.projectedPositions[t.id];
-			if (projected) {
-				return { ...t, position: projected };
-			}
-			return t;
-		});
-
-		set({
-			targets: newTargets,
-			simulation: {
-				isActive: false,
-				selectedActionId: null,
-				projectedPositions: {},
-			},
-		});
-	},
-}));
+		{
+			name: 'power-map-storage',
+			partialize: (state) => ({ targets: state.targets }), // Only persist targets
+		}
+	)
+);

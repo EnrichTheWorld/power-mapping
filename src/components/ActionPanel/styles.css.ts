@@ -97,3 +97,63 @@ export const description = style({
 	marginTop: vars.spacing[2],
 	lineHeight: 1.4,
 });
+
+export const controlGroup = style({
+	marginBottom: vars.spacing[5],
+	padding: vars.spacing[4],
+	background: vars.color.surfaceHover,
+	borderRadius: vars.radius.md,
+});
+
+export const controlLabel = style({
+	fontSize: '0.875rem',
+	fontWeight: 600,
+	marginBottom: vars.spacing[2],
+	display: 'block',
+	color: vars.color.foreground,
+});
+
+export const sliderContainer = style({
+	display: 'flex',
+	alignItems: 'center',
+	gap: vars.spacing[2],
+});
+
+export const slider = style({
+	flex: 1,
+	accentColor: vars.color.accent,
+});
+
+export const checkboxGroup = style({
+	display: 'flex',
+	flexWrap: 'wrap',
+	gap: vars.spacing[2],
+});
+
+export const checkboxLabel = style({
+	fontSize: '0.8rem',
+	display: 'flex',
+	alignItems: 'center',
+	gap: vars.spacing[1],
+	cursor: 'pointer',
+});
+
+export const resetDataButton = style({
+	marginTop: vars.spacing[4],
+	width: '100%',
+	padding: vars.spacing[2],
+	background: 'transparent',
+	border: `1px dashed ${vars.color.border}`,
+	color: vars.color.secondary,
+	borderRadius: vars.radius.md,
+	fontSize: '0.8rem',
+	cursor: 'pointer',
+	transition: vars.transition.fast,
+	selectors: {
+		'&:hover': {
+			borderColor: 'red',
+			color: 'red',
+			background: 'rgba(255, 0, 0, 0.05)',
+		},
+	},
+});
