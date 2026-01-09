@@ -55,7 +55,7 @@ export const AddTargetDialog = () => {
 				<Dialog.Content className={styles.content}>
 					<Dialog.Title className={styles.title}>Add New Target</Dialog.Title>
 
-					<form onSubmit={handleSubmit}>
+					<form onSubmit={handleSubmit} className={styles.form}>
 						<fieldset className={styles.fieldSet}>
 							<label className={styles.label} htmlFor="name">
 								Name
@@ -89,13 +89,16 @@ export const AddTargetDialog = () => {
 						</fieldset>
 
 						<fieldset className={styles.fieldSet}>
-							<label className={styles.label} htmlFor="support">
-								Support Level ({support})
-							</label>
+							<div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+								<label className={styles.label} htmlFor="support">
+									Support
+								</label>
+								<span className={styles.rangeValue}>{support}</span>
+							</div>
 							<div className={styles.rangeContainer}>
-								<span style={{ fontSize: '10px' }}>-100</span>
+								<span className={styles.rangeLabel}>-100</span>
 								<input
-									className={styles.input}
+									className={styles.rangeInput}
 									type="range"
 									id="support"
 									min="-100"
@@ -104,18 +107,21 @@ export const AddTargetDialog = () => {
 									value={support}
 									onChange={(e) => setSupport(Number(e.target.value))}
 								/>
-								<span style={{ fontSize: '10px' }}>100</span>
+								<span className={styles.rangeLabel}>100</span>
 							</div>
 						</fieldset>
 
 						<fieldset className={styles.fieldSet}>
-							<label className={styles.label} htmlFor="power">
-								Power Level ({power})
-							</label>
+							<div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+								<label className={styles.label} htmlFor="power">
+									Power
+								</label>
+								<span className={styles.rangeValue}>{power}</span>
+							</div>
 							<div className={styles.rangeContainer}>
-								<span style={{ fontSize: '10px' }}>-100</span>
+								<span className={styles.rangeLabel}>-100</span>
 								<input
-									className={styles.input}
+									className={styles.rangeInput}
 									type="range"
 									id="power"
 									min="-100"
@@ -124,17 +130,17 @@ export const AddTargetDialog = () => {
 									value={power}
 									onChange={(e) => setPower(Number(e.target.value))}
 								/>
-								<span style={{ fontSize: '10px' }}>100</span>
+								<span className={styles.rangeLabel}>100</span>
 							</div>
 						</fieldset>
 
 						<div className={styles.footer}>
 							<Dialog.Close asChild>
-								<button className={styles.saveButton} style={{ backgroundColor: '#333', color: 'white' }} type="button">
+								<button className={styles.secondaryButton} type="button">
 									Cancel
 								</button>
 							</Dialog.Close>
-							<button className={styles.saveButton} type="submit">
+							<button className={styles.primaryButton} type="submit">
 								Add Target
 							</button>
 						</div>
