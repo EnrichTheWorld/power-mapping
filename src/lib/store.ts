@@ -351,6 +351,12 @@ export const usePowerMapStore = create<PowerMapState>()(
 			setCustomSupportDelta: (delta) => {
 				set((state) => ({
 					simulation: { ...state.simulation, customSupportDelta: delta },
+					// Update the action's base config so it persists
+					actions: state.actions.map((a) =>
+						a.id === state.simulation.selectedActionId
+							? { ...a, baseEffect: { ...a.baseEffect, supportDelta: delta } }
+							: a
+					),
 				}));
 				// Re-calculate
 				const { simulation, actions, getProjectedPosition, targets } = get();
@@ -378,6 +384,12 @@ export const usePowerMapStore = create<PowerMapState>()(
 			setCustomPowerDelta: (delta) => {
 				set((state) => ({
 					simulation: { ...state.simulation, customPowerDelta: delta },
+					// Update the action's base config so it persists
+					actions: state.actions.map((a) =>
+						a.id === state.simulation.selectedActionId
+							? { ...a, baseEffect: { ...a.baseEffect, powerDelta: delta } }
+							: a
+					),
 				}));
 				// Re-calculate
 				const { simulation, actions, getProjectedPosition, targets } = get();
@@ -479,7 +491,7 @@ export const usePowerMapStore = create<PowerMapState>()(
 		}),
 		{
 			name: 'power-map-storage',
-			partialize: (state) => ({ targets: state.targets }), // Only persist targets
+			partialize: (state) => ({ targets: state.targets, actions: state.actions }), // Persist targets and actions
 		}
 	)
 );
