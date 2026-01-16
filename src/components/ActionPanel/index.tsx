@@ -12,7 +12,8 @@ export const ActionPanel = () => {
 		startSimulation,
 		commitSimulation,
 		cancelSimulation,
-		setSimulationIntensity,
+		setCustomSupportDelta,
+		setCustomPowerDelta,
 		toggleAffectedGroup,
 		resetToDefaults,
 	} = usePowerMapStore();
@@ -24,21 +25,50 @@ export const ActionPanel = () => {
 			<AddTargetDialog />
 			<h2 className={styles.title}>Strategies</h2>
 
-			{/* Settings Area (slider & groups) */}
+			{/* Settings Area (sliders & groups) */}
 			<div className={styles.controlGroup}>
-				<label className={styles.controlLabel}>Intensity: {simulation.intensity.toFixed(1)}x</label>
-				<div className={styles.sliderContainer}>
-					<span style={{ fontSize: '0.8rem' }}>0.5x</span>
-					<input
-						type="range"
-						min="0.5"
-						max="2.0"
-						step="0.1"
-						value={simulation.intensity}
-						onChange={(e) => setSimulationIntensity(parseFloat(e.target.value))}
-						className={styles.slider}
-					/>
-					<span style={{ fontSize: '0.8rem' }}>2.0x</span>
+				<div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
+					<div>
+						<label className={styles.controlLabel}>
+							Support Impact: {simulation.customSupportDelta > 0 ? '+' : ''}
+							{simulation.customSupportDelta}
+						</label>
+						<div className={styles.sliderContainer}>
+							<span style={{ fontSize: '0.8rem' }}>-50</span>
+							<input
+								type="range"
+								min="-50"
+								max="50"
+								step="1"
+								value={simulation.customSupportDelta}
+								onChange={(e) => setCustomSupportDelta(parseInt(e.target.value))}
+								className={styles.slider}
+								disabled={!simulation.isActive}
+							/>
+							<span style={{ fontSize: '0.8rem' }}>+50</span>
+						</div>
+					</div>
+
+					<div>
+						<label className={styles.controlLabel}>
+							Power Impact: {simulation.customPowerDelta > 0 ? '+' : ''}
+							{simulation.customPowerDelta}
+						</label>
+						<div className={styles.sliderContainer}>
+							<span style={{ fontSize: '0.8rem' }}>-50</span>
+							<input
+								type="range"
+								min="-50"
+								max="50"
+								step="1"
+								value={simulation.customPowerDelta}
+								onChange={(e) => setCustomPowerDelta(parseInt(e.target.value))}
+								className={styles.slider}
+								disabled={!simulation.isActive}
+							/>
+							<span style={{ fontSize: '0.8rem' }}>+50</span>
+						</div>
+					</div>
 				</div>
 			</div>
 

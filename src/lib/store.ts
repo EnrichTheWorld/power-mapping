@@ -18,9 +18,16 @@ interface PowerMapState {
 
 	// Helpers
 	// Helpers
-	getProjectedPosition: (target: Target, action: ActionStrategy, intensity: number) => Position;
+	// Helpers
+	getProjectedPosition: (
+		target: Target,
+		action: ActionStrategy,
+		customSupportDelta: number,
+		customPowerDelta: number
+	) => Position;
 	resetToDefaults: () => void;
-	setSimulationIntensity: (intensity: number) => void;
+	setCustomSupportDelta: (delta: number) => void;
+	setCustomPowerDelta: (delta: number) => void;
 	toggleAffectedGroup: (group: TargetGroup) => void;
 }
 
@@ -263,7 +270,8 @@ export const usePowerMapStore = create<PowerMapState>()(
 				isActive: false,
 				selectedActionId: null,
 				projectedPositions: {},
-				intensity: 1,
+				customSupportDelta: 0,
+				customPowerDelta: 0,
 				affectedGroups: ['Government', 'Business', 'Media', 'Academia', 'NGO'],
 			},
 
@@ -274,7 +282,8 @@ export const usePowerMapStore = create<PowerMapState>()(
 						isActive: false,
 						selectedActionId: null,
 						projectedPositions: {},
-						intensity: 1,
+						customSupportDelta: 0,
+						customPowerDelta: 0,
 						affectedGroups: ['Government', 'Business', 'Media', 'Academia', 'NGO'],
 					},
 				}),
@@ -291,12 +300,12 @@ export const usePowerMapStore = create<PowerMapState>()(
 					targets: state.targets.filter((t) => t.id !== id),
 				})),
 
-			getProjectedPosition: (target, action, intensity) => {
+			getProjectedPosition: (target, action, customSupportDelta, customPowerDelta) => {
 				const sensitivityValue = target.sensitivity?.[action.sensitivityFactor] || 1; // Default multiplier 1
 
-				// Calculate raw deltas
-				const dSupport = (action.baseEffect.supportDelta || 0) * sensitivityValue * intensity;
-				const dPower = (action.baseEffect.powerDelta || 0) * sensitivityValue * intensity;
+				// Calculate raw deltas using the custom values directly
+				const dSupport = customSupportDelta * sensitivityValue;
+				const dPower = customPowerDelta * sensitivityValue;
 
 				// Apply changes
 				let newSupport = target.position.support + dSupport;
@@ -314,10 +323,14 @@ export const usePowerMapStore = create<PowerMapState>()(
 				const action = actions.find((a) => a.id === actionId);
 				if (!action) return;
 
+				// Initialize with base effects
+				const initialSupportDelta = action.baseEffect.supportDelta || 0;
+				const initialPowerDelta = action.baseEffect.powerDelta || 0;
+
 				const projectedPositions: Record<string, Position> = {};
 				targets.forEach((t) => {
 					if (simulation.affectedGroups.includes(t.group)) {
-						projectedPositions[t.id] = getProjectedPosition(t, action, simulation.intensity);
+						projectedPositions[t.id] = getProjectedPosition(t, action, initialSupportDelta, initialPowerDelta);
 					} else {
 						projectedPositions[t.id] = t.position;
 					}
@@ -329,18 +342,63 @@ export const usePowerMapStore = create<PowerMapState>()(
 						isActive: true,
 						selectedActionId: actionId,
 						projectedPositions,
+						customSupportDelta: initialSupportDelta,
+						customPowerDelta: initialPowerDelta,
 					},
 				});
 			},
 
-			setSimulationIntensity: (intensity) => {
+			setCustomSupportDelta: (delta) => {
 				set((state) => ({
-					simulation: { ...state.simulation, intensity },
+					simulation: { ...state.simulation, customSupportDelta: delta },
 				}));
-				// Re-calculate if active
-				const { simulation, startSimulation } = get();
+				// Re-calculate
+				const { simulation, actions, getProjectedPosition, targets } = get();
 				if (simulation.isActive && simulation.selectedActionId) {
-					startSimulation(simulation.selectedActionId);
+					const action = actions.find((a) => a.id === simulation.selectedActionId);
+					if (!action) return;
+
+					const projectedPositions: Record<string, Position> = {};
+					targets.forEach((t) => {
+						if (simulation.affectedGroups.includes(t.group)) {
+							projectedPositions[t.id] = getProjectedPosition(
+								t,
+								action,
+								delta, // Use new delta
+								simulation.customPowerDelta
+							);
+						} else {
+							projectedPositions[t.id] = t.position;
+						}
+					});
+					set((state) => ({ simulation: { ...state.simulation, projectedPositions } }));
+				}
+			},
+
+			setCustomPowerDelta: (delta) => {
+				set((state) => ({
+					simulation: { ...state.simulation, customPowerDelta: delta },
+				}));
+				// Re-calculate
+				const { simulation, actions, getProjectedPosition, targets } = get();
+				if (simulation.isActive && simulation.selectedActionId) {
+					const action = actions.find((a) => a.id === simulation.selectedActionId);
+					if (!action) return;
+
+					const projectedPositions: Record<string, Position> = {};
+					targets.forEach((t) => {
+						if (simulation.affectedGroups.includes(t.group)) {
+							projectedPositions[t.id] = getProjectedPosition(
+								t,
+								action,
+								simulation.customSupportDelta,
+								delta // Use new delta
+							);
+						} else {
+							projectedPositions[t.id] = t.position;
+						}
+					});
+					set((state) => ({ simulation: { ...state.simulation, projectedPositions } }));
 				}
 			},
 
@@ -351,9 +409,34 @@ export const usePowerMapStore = create<PowerMapState>()(
 					return { simulation: { ...state.simulation, affectedGroups: newGroups } };
 				});
 				// Re-calculate if active
-				const { simulation, startSimulation } = get();
+				// We can re-use the setCustomSupportDelta logic or just copy logic to update positions
+				// For simplicity/safety, we'll manually trigger a recalculation properly
+				// But since startSimulation resets deltas to defaults, we cannot use it.
+				// We must recalculate using current deltas.
+				const { simulation, actions, getProjectedPosition, targets } = get();
 				if (simulation.isActive && simulation.selectedActionId) {
-					startSimulation(simulation.selectedActionId);
+					const action = actions.find((a) => a.id === simulation.selectedActionId);
+					if (action) {
+						const projectedPositions: Record<string, Position> = {};
+						targets.forEach((t) => {
+							// Check the new group list from state would be ideal, but 'set' is async or batched?
+							// Actually 'get()' inside here might still see old state if we didn't use the callback result?
+							// Zustand 'set' updates immediately.
+							const currentGroups = get().simulation.affectedGroups;
+
+							if (currentGroups.includes(t.group)) {
+								projectedPositions[t.id] = getProjectedPosition(
+									t,
+									action,
+									simulation.customSupportDelta,
+									simulation.customPowerDelta
+								);
+							} else {
+								projectedPositions[t.id] = t.position;
+							}
+						});
+						set((state) => ({ simulation: { ...state.simulation, projectedPositions } }));
+					}
 				}
 			},
 
@@ -363,7 +446,8 @@ export const usePowerMapStore = create<PowerMapState>()(
 						isActive: false,
 						selectedActionId: null,
 						projectedPositions: {},
-						intensity: 1,
+						customSupportDelta: 0,
+						customPowerDelta: 0,
 						affectedGroups: ['Government', 'Business', 'Media', 'Academia', 'NGO'],
 					},
 				}),
@@ -386,7 +470,8 @@ export const usePowerMapStore = create<PowerMapState>()(
 						isActive: false,
 						selectedActionId: null,
 						projectedPositions: {},
-						intensity: 1,
+						customSupportDelta: 0,
+						customPowerDelta: 0,
 						affectedGroups: ['Government', 'Business', 'Media', 'Academia', 'NGO'],
 					},
 				});

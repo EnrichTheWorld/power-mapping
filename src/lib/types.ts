@@ -43,6 +43,7 @@ export interface SimulationState {
 	isActive: boolean;
 	selectedActionId: string | null;
 	projectedPositions: Record<string, Position>; // targetId -> newPosition
-	intensity: number; // 0.5 to 2.0
+	customSupportDelta: number; // Applied to affected targets
+	customPowerDelta: number; // Applied to affected targets
 	affectedGroups: TargetGroup[]; // Filter which groups are affected
 }
